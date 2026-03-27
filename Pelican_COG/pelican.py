@@ -91,12 +91,7 @@ class PelicanCog(commands.Cog):
     # Setup (bot-owner only)
     # ------------------------------------------------------------------
 
-    @commands.hybrid_command(name="pelicanping")
-    async def pelican_ping(self, ctx: commands.Context):
-        """Test slash command registration."""
-        await ctx.send("Pelican online!")
-
-    @commands.hybrid_group(name="pelican")
+@commands.group(name="pelican")
     async def pelican(self, ctx: commands.Context):
         """Pelican Panel administration commands."""
 
