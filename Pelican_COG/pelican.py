@@ -1,6 +1,9 @@
+import logging
 import aiohttp
 import discord
 from redbot.core import checks, commands, Config
+
+log = logging.getLogger("red.pelican")
 
 
 class PelicanCog(commands.Cog):
@@ -13,9 +16,11 @@ class PelicanCog(commands.Cog):
         self.session = aiohttp.ClientSession(
             connector=aiohttp.TCPConnector(ssl=False)
         )
+        log.info("PelicanCog loaded")
 
     async def cog_unload(self):
         await self.session.close()
+        log.info("PelicanCog unloaded")
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -31,15 +36,19 @@ class PelicanCog(commands.Cog):
 
     async def _get(self, endpoint: str) -> dict:
         base = (await self.config.pelican_url()).rstrip("/")
-        async with self.session.get(f"{base}{endpoint}", headers=await self._headers()) as resp:
+        url = f"{base}{endpoint}"
+        log.debug("GET %s", url)
+        async with self.session.get(url, headers=await self._headers()) as resp:
+            log.debug("GET %s -> %s", url, resp.status)
             resp.raise_for_status()
             return await resp.json()
 
     async def _post(self, endpoint: str, payload: dict | None = None) -> dict:
         base = (await self.config.pelican_url()).rstrip("/")
-        async with self.session.post(
-            f"{base}{endpoint}", headers=await self._headers(), json=payload or {}
-        ) as resp:
+        url = f"{base}{endpoint}"
+        log.debug("POST %s payload=%s", url, payload)
+        async with self.session.post(url, headers=await self._headers(), json=payload or {}) as resp:
+            log.debug("POST %s -> %s", url, resp.status)
             resp.raise_for_status()
             if resp.content_type == "application/json":
                 return await resp.json()
@@ -47,9 +56,10 @@ class PelicanCog(commands.Cog):
 
     async def _put(self, endpoint: str, payload: dict | None = None) -> dict:
         base = (await self.config.pelican_url()).rstrip("/")
-        async with self.session.put(
-            f"{base}{endpoint}", headers=await self._headers(), json=payload or {}
-        ) as resp:
+        url = f"{base}{endpoint}"
+        log.debug("PUT %s payload=%s", url, payload)
+        async with self.session.put(url, headers=await self._headers(), json=payload or {}) as resp:
+            log.debug("PUT %s -> %s", url, resp.status)
             resp.raise_for_status()
             if resp.content_type == "application/json":
                 return await resp.json()
@@ -57,10 +67,14 @@ class PelicanCog(commands.Cog):
 
     async def _delete(self, endpoint: str) -> None:
         base = (await self.config.pelican_url()).rstrip("/")
-        async with self.session.delete(f"{base}{endpoint}", headers=await self._headers()) as resp:
+        url = f"{base}{endpoint}"
+        log.debug("DELETE %s", url)
+        async with self.session.delete(url, headers=await self._headers()) as resp:
+            log.debug("DELETE %s -> %s", url, resp.status)
             resp.raise_for_status()
 
     def _api_err(self, exc: Exception) -> str:
+        log.error("Pelican API error: %s", exc, exc_info=True)
         if isinstance(exc, aiohttp.ClientResponseError):
             return f"API error {exc.status}: {exc.message}"
         return f"Connection error: {exc}"
@@ -84,6 +98,7 @@ class PelicanCog(commands.Cog):
         """
         await self.config.pelican_url.set(url.rstrip("/"))
         await self.config.api_token.set(token)
+        log.info("Pelican Panel configured: %s", url.rstrip("/"))
         try:
             await ctx.message.delete()
         except discord.HTTPException:
