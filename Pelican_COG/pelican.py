@@ -10,7 +10,9 @@ class PelicanCog(commands.Cog):
         self.bot = bot
         self.config = Config.get_conf(self, identifier=8472916350, force_registration=True)
         self.config.register_global(pelican_url="", api_token="")
-        self.session = aiohttp.ClientSession()
+        self.session = aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(ssl=False)
+        )
 
     async def cog_unload(self):
         await self.session.close()
