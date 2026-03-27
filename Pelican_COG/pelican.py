@@ -96,7 +96,7 @@ class PelicanCog(commands.Cog):
     async def pelican_setup(self, ctx: commands.Context, url: str, token: str):
         """Configure the Pelican Panel URL and client API key.
 
-        Example: `[p]pelican setup https://panel.example.com ptlc_xxxx`
+        Example: `[p]pelican setup https://panel.example.com pacc_xxxx`
 
         Message is auto-deleted to protect the token.
         """
@@ -122,7 +122,7 @@ class PelicanCog(commands.Cog):
 
         embed = discord.Embed(title="Pelican Config", color=discord.Color.blurple())
         embed.add_field(name="Panel URL", value=url or "not set", inline=False)
-        embed.add_field(name="Client Key (ptlc_)", value=mask(client), inline=True)
+        embed.add_field(name="Client Key (pacc_)", value=mask(client), inline=True)
         embed.add_field(name="Admin Key (papp_)", value=mask(app), inline=True)
         await ctx.send(embed=embed)
 
