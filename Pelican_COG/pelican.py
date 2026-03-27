@@ -12,7 +12,7 @@ class PelicanCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.config = Config.get_conf(self, identifier=8472916350, force_registration=True)
-        self.config.register_global(pelican_url="", api_token="")
+        self.config.register_global(pelican_url="", api_token="", app_token="")
         self.session = aiohttp.ClientSession(
             connector=aiohttp.TCPConnector(ssl=False)
         )
@@ -26,8 +26,12 @@ class PelicanCog(commands.Cog):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    async def _headers(self) -> dict:
-        token = await self.config.api_token()
+    async def _headers(self, endpoint: str) -> dict:
+        """Select client or application token based on endpoint prefix."""
+        if endpoint.startswith("/api/application"):
+            token = await self.config.app_token()
+        else:
+            token = await self.config.api_token()
         return {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
@@ -38,7 +42,7 @@ class PelicanCog(commands.Cog):
         base = (await self.config.pelican_url()).rstrip("/")
         url = f"{base}{endpoint}"
         log.debug("GET %s", url)
-        async with self.session.get(url, headers=await self._headers()) as resp:
+        async with self.session.get(url, headers=await self._headers(endpoint)) as resp:
             log.debug("GET %s -> %s", url, resp.status)
             resp.raise_for_status()
             return await resp.json()
@@ -47,7 +51,7 @@ class PelicanCog(commands.Cog):
         base = (await self.config.pelican_url()).rstrip("/")
         url = f"{base}{endpoint}"
         log.debug("POST %s payload=%s", url, payload)
-        async with self.session.post(url, headers=await self._headers(), json=payload or {}) as resp:
+        async with self.session.post(url, headers=await self._headers(endpoint), json=payload or {}) as resp:
             log.debug("POST %s -> %s", url, resp.status)
             resp.raise_for_status()
             if resp.content_type == "application/json":
@@ -58,7 +62,7 @@ class PelicanCog(commands.Cog):
         base = (await self.config.pelican_url()).rstrip("/")
         url = f"{base}{endpoint}"
         log.debug("PUT %s payload=%s", url, payload)
-        async with self.session.put(url, headers=await self._headers(), json=payload or {}) as resp:
+        async with self.session.put(url, headers=await self._headers(endpoint), json=payload or {}) as resp:
             log.debug("PUT %s -> %s", url, resp.status)
             resp.raise_for_status()
             if resp.content_type == "application/json":
@@ -69,7 +73,7 @@ class PelicanCog(commands.Cog):
         base = (await self.config.pelican_url()).rstrip("/")
         url = f"{base}{endpoint}"
         log.debug("DELETE %s", url)
-        async with self.session.delete(url, headers=await self._headers()) as resp:
+        async with self.session.delete(url, headers=await self._headers(endpoint)) as resp:
             log.debug("DELETE %s -> %s", url, resp.status)
             resp.raise_for_status()
 
@@ -98,12 +102,30 @@ class PelicanCog(commands.Cog):
         """
         await self.config.pelican_url.set(url.rstrip("/"))
         await self.config.api_token.set(token)
-        log.info("Pelican Panel configured: %s", url.rstrip("/"))
+        log.info("Pelican client API configured: %s", url.rstrip("/"))
         try:
             await ctx.message.delete()
         except discord.HTTPException:
             pass
-        await ctx.send("Pelican Panel configured.", delete_after=10)
+        await ctx.send("Pelican client API configured.", delete_after=10)
+
+    @pelican.command(name="setupadmin")
+    @checks.is_owner()
+    async def pelican_setupadmin(self, ctx: commands.Context, token: str):
+        """Set the application (admin) API key.
+
+        Generate this under Admin → API Keys in the panel.
+        Example: `[p]pelican setupadmin papp_xxxx`
+
+        Message is auto-deleted to protect the token.
+        """
+        await self.config.app_token.set(token)
+        log.info("Pelican application API key configured")
+        try:
+            await ctx.message.delete()
+        except discord.HTTPException:
+            pass
+        await ctx.send("Pelican application API key configured.", delete_after=10)
 
     # ------------------------------------------------------------------
     # Server listing & info
@@ -571,3 +593,117 @@ class PelicanCog(commands.Cog):
             await ctx.send(self._api_err(exc))
             return
         await ctx.send(f"Reinstall triggered for `{identifier}`.")
+
+    # ------------------------------------------------------------------
+    # Application API — admin-level management (requires papp_ key)
+    # ------------------------------------------------------------------
+
+    @pelican.command(name="adminservers")
+    @checks.is_owner()
+    async def pelican_adminservers(self, ctx: commands.Context):
+        """List all servers on the panel via the application API."""
+        try:
+            data = await self._get("/api/application/servers")
+        except Exception as exc:
+            await ctx.send(self._api_err(exc))
+            return
+
+        servers = data.get("data", [])
+        if not servers:
+            await ctx.send("No servers found.")
+            return
+
+        embed = discord.Embed(title="All Servers (Admin)", color=discord.Color.red())
+        for s in servers[:25]:
+            attr = s.get("attributes", {})
+            suspended = "suspended" if attr.get("suspended") else "active"
+            embed.add_field(
+                name=f"{attr.get('name', '?')}  `{attr.get('identifier', '?')}`",
+                value=f"Node: {attr.get('node', '?')} | {suspended} | ID: {attr.get('id')}",
+                inline=False,
+            )
+        await ctx.send(embed=embed)
+
+    @pelican.command(name="adminusers")
+    @checks.is_owner()
+    async def pelican_adminusers(self, ctx: commands.Context):
+        """List all panel users via the application API."""
+        try:
+            data = await self._get("/api/application/users")
+        except Exception as exc:
+            await ctx.send(self._api_err(exc))
+            return
+
+        users = data.get("data", [])
+        if not users:
+            await ctx.send("No users found.")
+            return
+
+        embed = discord.Embed(title="All Panel Users (Admin)", color=discord.Color.red())
+        for u in users[:25]:
+            attr = u.get("attributes", {})
+            admin_tag = " 👑" if attr.get("root_admin") else ""
+            embed.add_field(
+                name=f"{attr.get('username', '?')}{admin_tag}",
+                value=f"{attr.get('email', '?')} | ID: {attr.get('id')}",
+                inline=True,
+            )
+        await ctx.send(embed=embed)
+
+    @pelican.command(name="adminnodes")
+    @checks.is_owner()
+    async def pelican_adminnodes(self, ctx: commands.Context):
+        """List all nodes via the application API."""
+        try:
+            data = await self._get("/api/application/nodes")
+        except Exception as exc:
+            await ctx.send(self._api_err(exc))
+            return
+
+        nodes = data.get("data", [])
+        if not nodes:
+            await ctx.send("No nodes found.")
+            return
+
+        embed = discord.Embed(title="Nodes (Admin)", color=discord.Color.red())
+        for n in nodes[:25]:
+            attr = n.get("attributes", {})
+            maintenance = " 🔧 maintenance" if attr.get("maintenance_mode") else ""
+            embed.add_field(
+                name=f"{attr.get('name', '?')}{maintenance}",
+                value=(
+                    f"ID: {attr.get('id')} | "
+                    f"Memory: {attr.get('memory', 0)} MB | "
+                    f"Disk: {attr.get('disk', 0)} MB"
+                ),
+                inline=False,
+            )
+        await ctx.send(embed=embed)
+
+    @pelican.command(name="suspend")
+    @checks.is_owner()
+    async def pelican_suspend(self, ctx: commands.Context, server_id: int):
+        """Suspend a server via the application API (uses numeric ID, not identifier).
+
+        Get the numeric ID from `!pelican adminservers`.
+        """
+        try:
+            await self._post(f"/api/application/servers/{server_id}/suspend")
+        except Exception as exc:
+            await ctx.send(self._api_err(exc))
+            return
+        await ctx.send(f"Server `{server_id}` suspended.")
+
+    @pelican.command(name="unsuspend")
+    @checks.is_owner()
+    async def pelican_unsuspend(self, ctx: commands.Context, server_id: int):
+        """Unsuspend a server via the application API (uses numeric ID).
+
+        Get the numeric ID from `!pelican adminservers`.
+        """
+        try:
+            await self._post(f"/api/application/servers/{server_id}/unsuspend")
+        except Exception as exc:
+            await ctx.send(self._api_err(exc))
+            return
+        await ctx.send(f"Server `{server_id}` unsuspended.")
