@@ -109,6 +109,23 @@ class PelicanCog(commands.Cog):
             pass
         await ctx.send("Pelican client API configured.", delete_after=10)
 
+    @pelican.command(name="config")
+    @checks.admin_or_permissions(administrator=True)
+    async def pelican_config(self, ctx: commands.Context):
+        """Show current configuration (tokens are masked)."""
+        url = await self.config.pelican_url()
+        client = await self.config.api_token()
+        app = await self.config.app_token()
+
+        def mask(token: str) -> str:
+            return f"{token[:8]}...{token[-4:]}" if len(token) > 12 else ("set" if token else "not set")
+
+        embed = discord.Embed(title="Pelican Config", color=discord.Color.blurple())
+        embed.add_field(name="Panel URL", value=url or "not set", inline=False)
+        embed.add_field(name="Client Key (ptlc_)", value=mask(client), inline=True)
+        embed.add_field(name="Admin Key (papp_)", value=mask(app), inline=True)
+        await ctx.send(embed=embed)
+
     @pelican.command(name="setupadmin")
     @checks.admin_or_permissions(administrator=True)
     async def pelican_setupadmin(self, ctx: commands.Context, token: str):
