@@ -366,7 +366,7 @@ class PelicanCog(commands.Cog):
     # Backups
     # ------------------------------------------------------------------
 
-    @pelican.hybrid_group(name="backup")
+    @pelican.group(name="backup")
     async def pelican_backup(self, ctx: commands.Context):
         """Backup management commands."""
 
@@ -448,7 +448,7 @@ class PelicanCog(commands.Cog):
     # Schedules
     # ------------------------------------------------------------------
 
-    @pelican.hybrid_group(name="schedule")
+    @pelican.group(name="schedule")
     async def pelican_schedule(self, ctx: commands.Context):
         """Schedule management commands."""
 
