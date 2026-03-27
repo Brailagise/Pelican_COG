@@ -706,7 +706,27 @@ class PelicanCog(commands.Cog):
         await ctx.send(f"Server `{server_id}` unsuspended.")
 
     # ------------------------------------------------------------------
-    # Slash commands (app_commands)
+    # Slash commands — autocomplete helper
+    # ------------------------------------------------------------------
+
+    async def _server_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        try:
+            data = await self._get("/api/client")
+        except Exception:
+            return []
+        choices = []
+        for s in data.get("data", []):
+            attr = s.get("attributes", {})
+            name = attr.get("name", "?")
+            identifier = attr.get("identifier", "")
+            if current.lower() in name.lower() or current.lower() in identifier.lower():
+                choices.append(app_commands.Choice(name=name, value=identifier))
+        return choices[:25]
+
+    # ------------------------------------------------------------------
+    # Slash commands
     # ------------------------------------------------------------------
 
     @app_commands.command(name="pelican-servers", description="List all Pelican servers")
@@ -724,8 +744,7 @@ class PelicanCog(commands.Cog):
         for s in servers:
             attr = s.get("attributes", {})
             identifier = attr.get("identifier", "?")
-            suspended = attr.get("is_suspended", False)
-            state = "suspended" if suspended else "active"
+            state = "suspended" if attr.get("is_suspended") else "active"
             embed.add_field(
                 name=f"{attr.get('name', 'Unknown')}  `{identifier}`",
                 value=f"Node: {attr.get('node', '?')} | {state}",
@@ -734,6 +753,7 @@ class PelicanCog(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="pelican-status", description="Show resource usage for a server")
+    @app_commands.autocomplete(identifier=_server_autocomplete)
     async def slash_status(self, interaction: discord.Interaction, identifier: str):
         try:
             data = await self._get(f"/api/client/servers/{identifier}/resources")
@@ -753,9 +773,32 @@ class PelicanCog(commands.Cog):
         embed.add_field(name="CPU", value=f"{resources.get('cpu_absolute', 0):.1f}%", inline=True)
         embed.add_field(name="RAM", value=f"{resources.get('memory_bytes', 0) // 1024 // 1024} MB", inline=True)
         embed.add_field(name="Disk", value=f"{resources.get('disk_bytes', 0) // 1024 // 1024} MB", inline=True)
+        embed.add_field(name="Net ↑", value=f"{resources.get('network_tx_bytes', 0) // 1024} KB", inline=True)
+        embed.add_field(name="Net ↓", value=f"{resources.get('network_rx_bytes', 0) // 1024} KB", inline=True)
+        embed.add_field(name="Uptime", value=f"{resources.get('uptime', 0) // 1000}s", inline=True)
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="pelican-info", description="Show full details for a server")
+    @app_commands.autocomplete(identifier=_server_autocomplete)
+    async def slash_info(self, interaction: discord.Interaction, identifier: str):
+        try:
+            data = await self._get(f"/api/client/servers/{identifier}")
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        attr = data.get("attributes", {})
+        limits = attr.get("limits", {})
+        embed = discord.Embed(title=attr.get("name", identifier), color=discord.Color.blurple())
+        embed.add_field(name="Identifier", value=f"`{attr.get('identifier')}`", inline=True)
+        embed.add_field(name="Node", value=attr.get("node", "?"), inline=True)
+        embed.add_field(name="Docker Image", value=attr.get("docker_image", "?"), inline=False)
+        embed.add_field(name="RAM", value=f"{limits.get('memory', 0)} MB", inline=True)
+        embed.add_field(name="CPU", value=f"{limits.get('cpu', 0)}%", inline=True)
+        embed.add_field(name="Disk", value=f"{limits.get('disk', 0)} MB", inline=True)
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="pelican-restart", description="Restart a server")
+    @app_commands.autocomplete(identifier=_server_autocomplete)
     async def slash_restart(self, interaction: discord.Interaction, identifier: str):
         try:
             await self._post(f"/api/client/servers/{identifier}/power", {"signal": "restart"})
@@ -765,6 +808,7 @@ class PelicanCog(commands.Cog):
         await interaction.response.send_message(f"Restarting `{identifier}`...")
 
     @app_commands.command(name="pelican-power", description="Send a power signal to a server")
+    @app_commands.autocomplete(identifier=_server_autocomplete)
     @app_commands.choices(signal=[
         app_commands.Choice(name="start", value="start"),
         app_commands.Choice(name="stop", value="stop"),
@@ -780,6 +824,7 @@ class PelicanCog(commands.Cog):
         await interaction.response.send_message(f"Sent `{signal.value}` to `{identifier}`.")
 
     @app_commands.command(name="pelican-cmd", description="Send a console command to a server")
+    @app_commands.autocomplete(identifier=_server_autocomplete)
     async def slash_cmd(self, interaction: discord.Interaction, identifier: str, command: str):
         try:
             await self._post(f"/api/client/servers/{identifier}/command", {"command": command})
@@ -787,3 +832,108 @@ class PelicanCog(commands.Cog):
             await interaction.response.send_message(self._api_err(exc), ephemeral=True)
             return
         await interaction.response.send_message(f"Command sent to `{identifier}`.")
+
+    @app_commands.command(name="pelican-activity", description="Show recent activity for a server")
+    @app_commands.autocomplete(identifier=_server_autocomplete)
+    async def slash_activity(self, interaction: discord.Interaction, identifier: str):
+        try:
+            data = await self._get(f"/api/client/servers/{identifier}/activity")
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        events = data.get("data", [])[:10]
+        if not events:
+            await interaction.response.send_message("No activity found.", ephemeral=True)
+            return
+        embed = discord.Embed(title=f"Activity — `{identifier}`", color=discord.Color.blurple())
+        for e in events:
+            attr = e.get("attributes", {})
+            actor = attr.get("actor", {})
+            name = actor.get("username", "system") if actor else "system"
+            embed.add_field(
+                name=attr.get("event", "?"),
+                value=f"By **{name}** — {attr.get('timestamp', '')}",
+                inline=False,
+            )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="pelican-files", description="List files in a server directory")
+    @app_commands.autocomplete(identifier=_server_autocomplete)
+    async def slash_files(self, interaction: discord.Interaction, identifier: str, directory: str = "/"):
+        try:
+            data = await self._get(f"/api/client/servers/{identifier}/files/list?directory={directory}")
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        files = data.get("data", [])
+        if not files:
+            await interaction.response.send_message(f"No files in `{directory}`.", ephemeral=True)
+            return
+        lines = []
+        for f in files[:30]:
+            attr = f.get("attributes", {})
+            icon = "📁" if attr.get("is_directory") else "📄"
+            size = f"{attr.get('size', 0) // 1024} KB" if not attr.get("is_directory") else ""
+            lines.append(f"{icon} `{attr.get('name', '?')}` {size}".strip())
+        embed = discord.Embed(
+            title=f"Files — `{identifier}:{directory}`",
+            description="\n".join(lines),
+            color=discord.Color.blurple(),
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="pelican-backup-list", description="List backups for a server")
+    @app_commands.autocomplete(identifier=_server_autocomplete)
+    async def slash_backup_list(self, interaction: discord.Interaction, identifier: str):
+        try:
+            data = await self._get(f"/api/client/servers/{identifier}/backups")
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        backups = data.get("data", [])
+        if not backups:
+            await interaction.response.send_message("No backups found.", ephemeral=True)
+            return
+        embed = discord.Embed(title=f"Backups — `{identifier}`", color=discord.Color.blurple())
+        for b in backups:
+            attr = b.get("attributes", {})
+            size = f"{attr.get('bytes', 0) // 1024 // 1024} MB"
+            locked = " 🔒" if attr.get("is_locked") else ""
+            completed = "✅" if attr.get("completed_at") else "⏳"
+            embed.add_field(
+                name=f"{completed} {attr.get('name', 'Unnamed')}{locked}",
+                value=f"`{attr.get('uuid', '')[:8]}` · {size} · {attr.get('created_at', '')[:10]}",
+                inline=False,
+            )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="pelican-backup-create", description="Create a backup for a server")
+    @app_commands.autocomplete(identifier=_server_autocomplete)
+    async def slash_backup_create(self, interaction: discord.Interaction, identifier: str, name: str = ""):
+        try:
+            data = await self._post(f"/api/client/servers/{identifier}/backups", {"name": name} if name else {})
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        attr = data.get("attributes", {})
+        await interaction.response.send_message(
+            f"Backup `{attr.get('name', 'Unnamed')}` started (`{attr.get('uuid', '')[:8]}`)."
+        )
+
+    @app_commands.command(name="pelican-suspend", description="Suspend a server (uses numeric ID from adminservers)")
+    async def slash_suspend(self, interaction: discord.Interaction, server_id: int):
+        try:
+            await self._post(f"/api/application/servers/{server_id}/suspend")
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        await interaction.response.send_message(f"Server `{server_id}` suspended.")
+
+    @app_commands.command(name="pelican-unsuspend", description="Unsuspend a server (uses numeric ID from adminservers)")
+    async def slash_unsuspend(self, interaction: discord.Interaction, server_id: int):
+        try:
+            await self._post(f"/api/application/servers/{server_id}/unsuspend")
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        await interaction.response.send_message(f"Server `{server_id}` unsuspended.")
