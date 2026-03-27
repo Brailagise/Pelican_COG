@@ -1,0 +1,12 @@
+{
+    "name": "PelicanCog",
+    "short": "Pelican server administration for Discord",
+    "description": "Manage and monitor your Pelican server infrastructure directly from Discord.",
+    "author": ["Brailagise"],
+    "install_msg": "Use `[p]pelican setup` to configure your Pelican URL and API token.",
+    "min_bot_version": "3.5.0",
+    "min_python_version": [3, 11, 0],
+    "end_user_data_statement": "This cog stores a Pelican API URL and token in bot config. No user data is stored.",
+    "tags": ["pelican", "admin", "server", "management"],
+    "hidden": false
+}
