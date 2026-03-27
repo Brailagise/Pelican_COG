@@ -1,7 +1,7 @@
 import logging
 import aiohttp
 import discord
-from redbot.core import checks, commands, Config
+from redbot.core import checks, commands, Config, app_commands
 
 log = logging.getLogger("red.pelican")
 
@@ -704,3 +704,86 @@ class PelicanCog(commands.Cog):
             await ctx.send(self._api_err(exc))
             return
         await ctx.send(f"Server `{server_id}` unsuspended.")
+
+    # ------------------------------------------------------------------
+    # Slash commands (app_commands)
+    # ------------------------------------------------------------------
+
+    @app_commands.command(name="pelican-servers", description="List all Pelican servers")
+    async def slash_servers(self, interaction: discord.Interaction):
+        try:
+            data = await self._get("/api/client")
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        servers = data.get("data", [])
+        if not servers:
+            await interaction.response.send_message("No servers found.", ephemeral=True)
+            return
+        embed = discord.Embed(title="Pelican Servers", color=discord.Color.blurple())
+        for s in servers:
+            attr = s.get("attributes", {})
+            identifier = attr.get("identifier", "?")
+            suspended = attr.get("is_suspended", False)
+            state = "suspended" if suspended else "active"
+            embed.add_field(
+                name=f"{attr.get('name', 'Unknown')}  `{identifier}`",
+                value=f"Node: {attr.get('node', '?')} | {state}",
+                inline=False,
+            )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="pelican-status", description="Show resource usage for a server")
+    async def slash_status(self, interaction: discord.Interaction, identifier: str):
+        try:
+            data = await self._get(f"/api/client/servers/{identifier}/resources")
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        attr = data.get("attributes", {})
+        state = attr.get("current_state", "unknown")
+        resources = attr.get("resources", {})
+        color = {
+            "running": discord.Color.green(),
+            "offline": discord.Color.red(),
+            "starting": discord.Color.yellow(),
+            "stopping": discord.Color.orange(),
+        }.get(state, discord.Color.greyple())
+        embed = discord.Embed(title=f"Server `{identifier}` — {state}", color=color)
+        embed.add_field(name="CPU", value=f"{resources.get('cpu_absolute', 0):.1f}%", inline=True)
+        embed.add_field(name="RAM", value=f"{resources.get('memory_bytes', 0) // 1024 // 1024} MB", inline=True)
+        embed.add_field(name="Disk", value=f"{resources.get('disk_bytes', 0) // 1024 // 1024} MB", inline=True)
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="pelican-restart", description="Restart a server")
+    async def slash_restart(self, interaction: discord.Interaction, identifier: str):
+        try:
+            await self._post(f"/api/client/servers/{identifier}/power", {"signal": "restart"})
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        await interaction.response.send_message(f"Restarting `{identifier}`...")
+
+    @app_commands.command(name="pelican-power", description="Send a power signal to a server")
+    @app_commands.choices(signal=[
+        app_commands.Choice(name="start", value="start"),
+        app_commands.Choice(name="stop", value="stop"),
+        app_commands.Choice(name="restart", value="restart"),
+        app_commands.Choice(name="kill", value="kill"),
+    ])
+    async def slash_power(self, interaction: discord.Interaction, identifier: str, signal: app_commands.Choice[str]):
+        try:
+            await self._post(f"/api/client/servers/{identifier}/power", {"signal": signal.value})
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        await interaction.response.send_message(f"Sent `{signal.value}` to `{identifier}`.")
+
+    @app_commands.command(name="pelican-cmd", description="Send a console command to a server")
+    async def slash_cmd(self, interaction: discord.Interaction, identifier: str, command: str):
+        try:
+            await self._post(f"/api/client/servers/{identifier}/command", {"command": command})
+        except Exception as exc:
+            await interaction.response.send_message(self._api_err(exc), ephemeral=True)
+            return
+        await interaction.response.send_message(f"Command sent to `{identifier}`.")
