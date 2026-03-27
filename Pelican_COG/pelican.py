@@ -91,7 +91,7 @@ class PelicanCog(commands.Cog):
     # Setup (bot-owner only)
     # ------------------------------------------------------------------
 
-@commands.group(name="pelican")
+    @commands.group(name="pelican")
     async def pelican(self, ctx: commands.Context):
         """Pelican Panel administration commands."""
 
