@@ -44,6 +44,9 @@ class PelicanCog(commands.Cog):
         log.debug("GET %s", url)
         async with self.session.get(url, headers=await self._headers(endpoint)) as resp:
             log.debug("GET %s -> %s", url, resp.status)
+            if not resp.ok:
+                body = await resp.text()
+                log.error("GET %s -> %s: %s", url, resp.status, body)
             resp.raise_for_status()
             return await resp.json()
 
