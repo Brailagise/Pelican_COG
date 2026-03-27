@@ -91,7 +91,7 @@ class PelicanCog(commands.Cog):
     # Setup (bot-owner only)
     # ------------------------------------------------------------------
 
-    @commands.group(name="pelican")
+    @commands.hybrid_group(name="pelican")
     async def pelican(self, ctx: commands.Context):
         """Pelican Panel administration commands."""
 
@@ -361,7 +361,7 @@ class PelicanCog(commands.Cog):
     # Backups
     # ------------------------------------------------------------------
 
-    @pelican.group(name="backup")
+    @pelican.hybrid_group(name="backup")
     async def pelican_backup(self, ctx: commands.Context):
         """Backup management commands."""
 
@@ -443,7 +443,7 @@ class PelicanCog(commands.Cog):
     # Schedules
     # ------------------------------------------------------------------
 
-    @pelican.group(name="schedule")
+    @pelican.hybrid_group(name="schedule")
     async def pelican_schedule(self, ctx: commands.Context):
         """Schedule management commands."""
 
