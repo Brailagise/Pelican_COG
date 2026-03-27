@@ -92,7 +92,7 @@ class PelicanCog(commands.Cog):
         """Pelican Panel administration commands."""
 
     @pelican.command(name="setup")
-    @checks.is_owner()
+    @checks.admin_or_permissions(administrator=True)
     async def pelican_setup(self, ctx: commands.Context, url: str, token: str):
         """Configure the Pelican Panel URL and client API key.
 
@@ -110,7 +110,7 @@ class PelicanCog(commands.Cog):
         await ctx.send("Pelican client API configured.", delete_after=10)
 
     @pelican.command(name="setupadmin")
-    @checks.is_owner()
+    @checks.admin_or_permissions(administrator=True)
     async def pelican_setupadmin(self, ctx: commands.Context, token: str):
         """Set the application (admin) API key.
 
@@ -415,7 +415,7 @@ class PelicanCog(commands.Cog):
         await ctx.send(f"Backup `{backup_uuid[:8]}` deleted.")
 
     @pelican_backup.command(name="restore")
-    @checks.is_owner()
+    @checks.admin_or_permissions(administrator=True)
     async def backup_restore(self, ctx: commands.Context, identifier: str, backup_uuid: str):
         """Restore a server from a backup (owner only — this overwrites server files).
 
@@ -548,7 +548,7 @@ class PelicanCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @pelican.command(name="setvar")
-    @checks.is_owner()
+    @checks.admin_or_permissions(administrator=True)
     async def pelican_setvar(
         self, ctx: commands.Context, identifier: str, env_variable: str, *, value: str
     ):
@@ -571,7 +571,7 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="rename")
-    @checks.is_owner()
+    @checks.admin_or_permissions(administrator=True)
     async def pelican_rename(self, ctx: commands.Context, identifier: str, *, new_name: str):
         """Rename a server (owner only)."""
         try:
@@ -584,7 +584,7 @@ class PelicanCog(commands.Cog):
         await ctx.send(f"Renamed `{identifier}` to **{new_name}**.")
 
     @pelican.command(name="reinstall")
-    @checks.is_owner()
+    @checks.admin_or_permissions(administrator=True)
     async def pelican_reinstall(self, ctx: commands.Context, identifier: str):
         """Reinstall a server (owner only — this will wipe the server)."""
         try:
@@ -599,7 +599,7 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="adminservers")
-    @checks.is_owner()
+    @checks.admin_or_permissions(administrator=True)
     async def pelican_adminservers(self, ctx: commands.Context):
         """List all servers on the panel via the application API."""
         try:
@@ -625,7 +625,7 @@ class PelicanCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @pelican.command(name="adminusers")
-    @checks.is_owner()
+    @checks.admin_or_permissions(administrator=True)
     async def pelican_adminusers(self, ctx: commands.Context):
         """List all panel users via the application API."""
         try:
@@ -651,7 +651,7 @@ class PelicanCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @pelican.command(name="adminnodes")
-    @checks.is_owner()
+    @checks.admin_or_permissions(administrator=True)
     async def pelican_adminnodes(self, ctx: commands.Context):
         """List all nodes via the application API."""
         try:
@@ -681,7 +681,7 @@ class PelicanCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @pelican.command(name="suspend")
-    @checks.is_owner()
+    @checks.admin_or_permissions(administrator=True)
     async def pelican_suspend(self, ctx: commands.Context, server_id: int):
         """Suspend a server via the application API (uses numeric ID, not identifier).
 
@@ -695,7 +695,7 @@ class PelicanCog(commands.Cog):
         await ctx.send(f"Server `{server_id}` suspended.")
 
     @pelican.command(name="unsuspend")
-    @checks.is_owner()
+    @checks.admin_or_permissions(administrator=True)
     async def pelican_unsuspend(self, ctx: commands.Context, server_id: int):
         """Unsuspend a server via the application API (uses numeric ID).
 
