@@ -36,6 +36,7 @@ class PelicanCog(commands.Cog):
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "X-Forwarded-Proto": "https",
         }
 
     async def _get(self, endpoint: str) -> dict:
