@@ -96,7 +96,6 @@ class PelicanCog(commands.Cog):
         """Pelican Panel administration commands."""
 
     @pelican.command(name="setup")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_setup(self, ctx: commands.Context, url: str, token: str):
         """Configure the Pelican Panel URL and client API key.
 
@@ -114,7 +113,6 @@ class PelicanCog(commands.Cog):
         await ctx.send("Pelican client API configured.", delete_after=10)
 
     @pelican.command(name="config")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_config(self, ctx: commands.Context):
         """Show current configuration (tokens are masked)."""
         url = await self.config.pelican_url()
@@ -131,7 +129,6 @@ class PelicanCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @pelican.command(name="setupadmin")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_setupadmin(self, ctx: commands.Context, token: str):
         """Set the application (admin) API key.
 
@@ -153,7 +150,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="servers")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_servers(self, ctx: commands.Context):
         """List all servers on the panel."""
         try:
@@ -182,7 +178,6 @@ class PelicanCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @pelican.command(name="info")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_info(self, ctx: commands.Context, identifier: str):
         """Show full details for a server."""
         try:
@@ -219,7 +214,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="status")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_status(self, ctx: commands.Context, identifier: str):
         """Show live resource usage for a server."""
         try:
@@ -253,7 +247,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="power")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_power(self, ctx: commands.Context, identifier: str, signal: str):
         """Send a power signal to a server.
 
@@ -271,7 +264,6 @@ class PelicanCog(commands.Cog):
         await ctx.send(f"Sent `{signal}` to `{identifier}`.")
 
     @pelican.command(name="restart")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_restart(self, ctx: commands.Context, identifier: str):
         """Restart a server."""
         try:
@@ -286,7 +278,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="cmd")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_cmd(self, ctx: commands.Context, identifier: str, *, command: str):
         """Send a console command to a server.
 
@@ -304,7 +295,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="activity")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_activity(self, ctx: commands.Context, identifier: str):
         """Show recent activity log for a server."""
         try:
@@ -335,7 +325,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="files")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_files(self, ctx: commands.Context, identifier: str, directory: str = "/"):
         """List files in a server directory.
 
@@ -373,7 +362,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.group(name="backup")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_backup(self, ctx: commands.Context):
         """Backup management commands."""
 
@@ -436,7 +424,6 @@ class PelicanCog(commands.Cog):
         await ctx.send(f"Backup `{backup_uuid[:8]}` deleted.")
 
     @pelican_backup.command(name="restore")
-    @checks.admin_or_permissions(administrator=True)
     async def backup_restore(self, ctx: commands.Context, identifier: str, backup_uuid: str):
         """Restore a server from a backup (owner only — this overwrites server files).
 
@@ -457,7 +444,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.group(name="schedule")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_schedule(self, ctx: commands.Context):
         """Schedule management commands."""
 
@@ -511,7 +497,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="users")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_users(self, ctx: commands.Context, identifier: str):
         """List subusers for a server."""
         try:
@@ -541,7 +526,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="startup")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_startup(self, ctx: commands.Context, identifier: str):
         """List editable startup variables for a server."""
         try:
@@ -569,7 +553,6 @@ class PelicanCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @pelican.command(name="setvar")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_setvar(
         self, ctx: commands.Context, identifier: str, env_variable: str, *, value: str
     ):
@@ -592,7 +575,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="rename")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_rename(self, ctx: commands.Context, identifier: str, *, new_name: str):
         """Rename a server (owner only)."""
         try:
@@ -605,7 +587,6 @@ class PelicanCog(commands.Cog):
         await ctx.send(f"Renamed `{identifier}` to **{new_name}**.")
 
     @pelican.command(name="reinstall")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_reinstall(self, ctx: commands.Context, identifier: str):
         """Reinstall a server (owner only — this will wipe the server)."""
         try:
@@ -620,7 +601,6 @@ class PelicanCog(commands.Cog):
     # ------------------------------------------------------------------
 
     @pelican.command(name="adminservers")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_adminservers(self, ctx: commands.Context):
         """List all servers on the panel via the application API."""
         try:
@@ -646,7 +626,6 @@ class PelicanCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @pelican.command(name="adminusers")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_adminusers(self, ctx: commands.Context):
         """List all panel users via the application API."""
         try:
@@ -672,7 +651,6 @@ class PelicanCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @pelican.command(name="adminnodes")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_adminnodes(self, ctx: commands.Context):
         """List all nodes via the application API."""
         try:
@@ -702,7 +680,6 @@ class PelicanCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @pelican.command(name="suspend")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_suspend(self, ctx: commands.Context, server_id: int):
         """Suspend a server via the application API (uses numeric ID, not identifier).
 
@@ -716,7 +693,6 @@ class PelicanCog(commands.Cog):
         await ctx.send(f"Server `{server_id}` suspended.")
 
     @pelican.command(name="unsuspend")
-    @checks.admin_or_permissions(administrator=True)
     async def pelican_unsuspend(self, ctx: commands.Context, server_id: int):
         """Unsuspend a server via the application API (uses numeric ID).
 
